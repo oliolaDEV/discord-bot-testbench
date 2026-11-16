@@ -1,0 +1,33 @@
+{
+  "name": "Ping and verify the live Discord reply",
+  "steps": [
+    {
+      "id": "status",
+      "request": { "op": "status" },
+      "expect": [{ "path": "ready", "equals": true }]
+    },
+    {
+      "id": "ping",
+      "request": {
+        "op": "interact",
+        "interaction": {
+          "kind": "command",
+          "name": "ping",
+          "channelId": "{{steps.status.channelIds.0}}",
+          "userId": "{{steps.status.userIds.0}}"
+        }
+      },
+      "expect": [{ "path": "status", "equals": "passed" }]
+    },
+    {
+      "id": "verify",
+      "request": {
+        "op": "assert",
+        "channelId": "{{steps.status.channelIds.0}}",
+        "messageId": "{{steps.ping.events.0.messageId}}",
+        "contains": "Pong!"
+      },
+      "expect": [{ "path": "passed", "equals": true }]
+    }
+  ]
+}

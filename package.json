@@ -1,0 +1,55 @@
+{
+  "name": "discord-bot-testbench",
+  "version": "0.1.0",
+  "description": "Give coding agents a test bench inside your Discord development server.",
+  "type": "module",
+  "license": "MIT",
+  "repository": { "type": "git", "url": "git+https://github.com/oliolaDEV/discord-bot-testbench.git" },
+  "homepage": "https://github.com/oliolaDEV/discord-bot-testbench#readme",
+  "bugs": { "url": "https://github.com/oliolaDEV/discord-bot-testbench/issues" },
+  "keywords": ["discord", "discord-bot", "testing", "mcp", "discord.js", "discord.py", "testbench", "coding-agent", "integration-testing"],
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "bin": {
+    "discord-bot-testbench": "dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "CONTRIBUTING.md",
+    ".env.example",
+    "LICENSE",
+    "docs",
+    "examples",
+    "agent",
+    "skills",
+    "SETUP.md",
+    "adapters",
+    "assets"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "check": "tsc --noEmit",
+    "test": "npm run build && node --test test/*.test.mjs",
+    "test:package": "npm pack --silent && node test/package-install.mjs",
+    "prepare": "npm run build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "discord.js": "^14.28.1",
+    "smol-toml": "^1.9.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.9.3"
+  }
+}

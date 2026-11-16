@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="280" viewBox="0 0 1200 280" role="img" aria-labelledby="title desc">
+  <title id="title">Discord Bot Testbench</title>
+  <desc id="desc">Commands, components, and real Discord effects. A test bench for coding agents.</desc>
+  <defs>
+    <linearGradient id="bg" x2="1" y2="1"><stop stop-color="#10172c"/><stop offset="1" stop-color="#202855"/></linearGradient>
+    <linearGradient id="accent"><stop stop-color="#8b9cff"/><stop offset="1" stop-color="#78e5bb"/></linearGradient>
+  </defs>
+  <rect width="1200" height="280" rx="20" fill="url(#bg)"/>
+  <path d="M860 0v280M920 0v280M980 0v280M1040 0v280M1100 0v280M1160 0v280M820 40h380M820 100h380M820 160h380M820 220h380" stroke="#8b9cff" opacity=".07"/>
+  <rect x="48" y="43" width="148" height="27" rx="13" fill="#78e5bb" fill-opacity=".12"/>
+  <text x="64" y="62" font-family="Arial,sans-serif" font-size="12" font-weight="700" fill="#8ceccb" letter-spacing="1.4">BUILD · TEST · FIX</text>
+  <text x="48" y="129" font-family="Arial,sans-serif" font-size="49" font-weight="700" fill="#f4f6ff">Discord Bot Testbench</text>
+  <text x="50" y="172" font-family="Arial,sans-serif" font-size="21" fill="#bdc8ec">Your agent writes the bot. Give it somewhere to test it.</text>
+  <text x="50" y="225" font-family="Arial,sans-serif" font-size="15" fill="#8b9bbf">COMMANDS  /  BUTTONS  /  MODALS  /  LIVE ASSERTIONS</text>
+  <rect x="893" y="70" width="250" height="143" rx="13" fill="#0b1227" stroke="#586792"/>
+  <circle cx="915" cy="91" r="4" fill="#f192a6"/><circle cx="931" cy="91" r="4" fill="#eed195"/><circle cx="947" cy="91" r="4" fill="#78e5bb"/>
+  <text x="913" y="129" font-family="monospace" font-size="15" fill="#b5c1ff">/ticket create</text>
+  <path d="M914 149h208" stroke="#253358"/>
+  <text x="913" y="176" font-family="monospace" font-size="14" fill="#78e5bb">✓ expected state verified</text>
+</svg>

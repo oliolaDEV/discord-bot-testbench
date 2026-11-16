@@ -1,0 +1,13 @@
+node_modules/
+.testbench/
+.venv*/
+**/__pycache__/
+**/*.pyc
+**/*.egg-info/
+**/bin/
+**/obj/
+**/build/
+*.tgz
+.env
+.env.*
+!.env.example
