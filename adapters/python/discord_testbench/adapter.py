@@ -32,7 +32,9 @@ def _payload(content=None, **kwargs):
         result["embeds"] = [embed.to_dict() for embed in kwargs["embeds"]]
     if "view" in kwargs:
         result["components"] = kwargs["view"].to_components() if kwargs["view"] else []
-    flags = (64 if kwargs.get("ephemeral") else 0) | (4096 if kwargs.get("silent") else 0) | (4 if kwargs.get("suppress_embeds") else 0)
+    view = kwargs.get("view")
+    components_v2 = view is not None and getattr(view, "has_components_v2", lambda: False)()
+    flags = (32768 if components_v2 else 0) | (64 if kwargs.get("ephemeral") else 0) | (4096 if kwargs.get("silent") else 0) | (4 if kwargs.get("suppress_embeds") else 0)
     if flags:
         result["flags"] = flags
     if "tts" in kwargs:
@@ -170,7 +172,8 @@ async def _dispatch(bot, interaction):
         modal = store._modals.get(data["custom_id"])
         if modal is None:
             raise RuntimeError("No captured or registered modal matches this custom ID")
-        modal._refresh(interaction, data.get("components", []), data.get("resolved", {}))
+        resolved = discord.app_commands.Namespace._get_resolved_items(interaction, data.get("resolved", {}))
+        modal._refresh(interaction, data.get("components", []), resolved)
         if not await modal.interaction_check(interaction):
             raise RuntimeError("Modal interaction check rejected the test identity")
         await modal.on_submit(interaction)

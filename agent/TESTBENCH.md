@@ -53,6 +53,8 @@ Commands must already be registered on Discord. Discover names and options befor
 
 The adapter constructs discord.js interaction instances and invokes your handlers. Discord API calls inside those handlers are real. The initial interaction is synthetic: no user account is automated, no real interaction token exists, and Discord client rendering and Gateway delivery are not tested.
 
-Server-specific command permission overrides, complete option validation, client availability checks, collectors, attachment options, voice and real ephemeral delivery are outside this adapter's current coverage. Test those separately. Do not label them as passed.
+For Components v2, nested component assertions and typed modal inputs such as checkboxes, read the installed package's `docs/COMPONENTS.md`. Checkbox/radio widgets in the native Python adapter require discord.py 2.7. File-upload submissions resolve existing attachment metadata; they do not exercise a new client upload.
+
+Server-specific command permission overrides, complete option validation, client availability checks, collectors, command attachment options, voice and real ephemeral delivery are outside this adapter's current coverage. Test those separately. Do not label them as passed.
 
 The configuration restricts testbench entry points. It does not sandbox your bot code: a handler can still use every permission held by its bot token. Use a dedicated development application and guild.

@@ -1,30 +1,21 @@
 ![Discord Bot Testbench](assets/banner.svg)
 
-# Discord Bot Testbench
-
 [![CI](https://github.com/oliolaDEV/discord-bot-testbench/actions/workflows/ci.yml/badge.svg)](https://github.com/oliolaDEV/discord-bot-testbench/actions/workflows/ci.yml)
 [![MIT License](https://img.shields.io/github/license/oliolaDEV/discord-bot-testbench)](LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/oliolaDEV/discord-bot-testbench?style=flat)](https://github.com/oliolaDEV/discord-bot-testbench/stargazers)
 [![Preview](https://img.shields.io/badge/status-preview-818cf8)](docs/ADAPTERS.md)
 
-**Your agent writes the bot. Give it somewhere to test it.**
+Run a development bot's commands and component handlers from your coding agent, then check the resulting messages, channels and permissions on Discord.
 
-Discord Bot Testbench connects coding agents to a running Discord development bot. Ask your agent to implement a feature, exercise its commands, inspect the resulting messages and server state, and fix what fails — without handing every manual check back to you.
+Native adapters connect discord.js and discord.py. Other runtimes can use a local HTTP router. Tools are available through MCP or the CLI, with saved reports and repeatable test scenarios.
 
-One package. A small bot integration. MCP tools for Claude Code, Codex and other local MCP clients.
-
-**Prefer to let your agent handle the setup?** Give it this repository and say: “Read SETUP.md, set this up in my bot project, and verify a test result. Ask me only for missing Discord access or IDs.” The [agent setup guide](SETUP.md) and bundled skill cover installation, source integration and the first test. You generally supply a development-channel link and the test member's ID; existing configuration can supply both.
-
-```text
-Coding agent → MCP tools → Your running bot → Your Discord test server
-                                  ↓
-                         Saved results and assertions
-```
+To let the agent handle installation, give it this repository and ask it to follow [SETUP.md](SETUP.md). It installs the package, integrates the adapter and verifies a test result. You supply a development-channel link and a test member's ID when they are not already configured.
 
 ## What it does
 
 - Executes slash-command handlers, including subcommands and resolved user, role and channel options.
-- Exercises buttons, select menus, text-input modals, autocomplete and user/message context menus.
+- Exercises buttons, every select-menu type, modal text fields, checkboxes, checkbox groups, radio groups, autocomplete and context menus.
+- Sends and inspects Components v2 layouts, including containers, sections, separators, text displays, thumbnails, galleries and file components.
 - Captures replies, deferred replies, edits, follow-ups, modal definitions and autocomplete choices.
 - Mirrors public responses into real Discord channels and keeps private responses in local reports.
 - Reads real messages, channels, roles, permission overwrites and test-user permissions.
@@ -32,7 +23,7 @@ Coding agent → MCP tools → Your running bot → Your Discord test server
 - Creates and cleans up tracked test channels and roles.
 - Saves interaction reports and runs repeatable JSON scenarios with failing exit codes.
 
-**The distinction that matters:** interactions are dispatched synthetically into your bot; Discord API effects are real. This is a development integration test bench, not automation of the Discord user client. A successful test does not establish that Discord's command picker, Gateway delivery or client rendering worked.
+Test inputs are synthetic interactions dispatched into your bot. Discord API calls made by the handlers are real. Tests check handler behavior and server state; they do not exercise Discord's command picker, Gateway delivery or client rendering.
 
 Native adapters support **discord.js 14** and **discord.py 2.6–2.7**. A language-neutral HTTP adapter connects other runtimes, including C#, Java/Kotlin, Go, Rust, C++, Ruby and PHP, through an application development endpoint. These are integration routes, not a claim that every gateway SDK works unchanged. The controller requires Node.js 22.12+. See the [adapter guide and support matrix](docs/ADAPTERS.md).
 
@@ -192,7 +183,7 @@ The smoke scenario executes `/ping` through the adapter and checks the correspon
 
 The MCP server also provides the `test-discord-changes` prompt. Interaction reports distinguish response events, errors, acknowledgement time and execution mode. A `passed` report means the awaited handler completed and acknowledged in time; use assertions to verify product behavior.
 
-## Honest coverage
+## Test coverage
 
 | Area | Coverage |
 | --- | --- |
@@ -214,6 +205,7 @@ Discord does not document a bot API for invoking another application's slash com
 
 - [Integration and lifecycle](docs/INTEGRATION.md)
 - [Adapters and language support](docs/ADAPTERS.md)
+- [Components v2 and modal fields](docs/COMPONENTS.md)
 - [Interaction inputs and tool examples](docs/INTERACTIONS.md)
 - [Local protocol and test scenarios](docs/PROTOCOL.md)
 - [Security and operational boundaries](docs/SECURITY.md)

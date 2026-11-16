@@ -78,7 +78,7 @@ When a handler calls `showModal`, its definition appears in a response event. Su
 }
 ```
 
-The current input model supports text fields. It does not require a previously opened modal session or enforce the modal's required fields and length constraints. This allows direct handler and negative-path tests but does not reproduce client validation. Newer modal component types are not represented by this input model.
+Use `modalFields` for selects, radio groups, checkbox groups, checkboxes and file-upload metadata. Previously captured modal definitions are checked for required inputs, lengths, choices and field types. Direct submissions without a captured definition remain available with partial validation. See [Components v2 and modal fields](COMPONENTS.md) for formats and limits.
 
 ## Autocomplete
 
@@ -90,7 +90,7 @@ Use the exact registered name and either `kind: "user-context"` with `targetId` 
 
 ## Read and assert
 
-`testbench_assert` accepts `channelId`, optional `messageId` and one or more of `contains`, `embedTitle` or `componentId`. All supplied predicates must match one message. Without a message ID it searches the latest 100 messages; prefer exact IDs to avoid matching an earlier run.
+`testbench_assert` accepts `channelId`, optional `messageId` and one or more of `contains`, `embedTitle`, `componentId` or `componentType`. Text display content and nested components are included. All supplied predicates must match one message. Without a message ID it searches the latest 100 messages; prefer exact IDs to avoid matching an earlier run.
 
 `testbench_wait` requires `channelId`, `contains` and an `after` message ID. It polls up to 100 messages at a time for at most 30 seconds. It is intended for quiet development channels, not exhaustive high-volume history searches.
 

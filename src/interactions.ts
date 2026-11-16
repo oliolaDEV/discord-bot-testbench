@@ -6,6 +6,7 @@ import {
   MessageFlags, MessageFlagsBitField, PermissionsBitField, type Client, type GuildMember, type Interaction
 } from 'discord.js';
 import type { InteractionInput } from './protocol.js';
+import { modalComponents } from './components.js';
 
 type Raw = Record<string, any>;
 
@@ -37,10 +38,14 @@ export function messageData(message: Message) {
     timestamp: message.createdAt.toISOString(), edited_timestamp: message.editedAt?.toISOString() ?? null,
     tts: message.tts, mention_everyone: message.mentions.everyone,
     mentions: message.mentions.users.map(userData), mention_roles: [...message.mentions.roles.keys()],
-    attachments: message.attachments.map(a => a.toJSON()), embeds: message.embeds.map(e => e.toJSON()),
+    attachments: message.attachments.map(attachmentData), embeds: message.embeds.map(e => e.toJSON()),
     components: message.components.map(c => c.toJSON()), pinned: message.pinned, type: message.type,
     flags: message.flags.bitfield
   };
+}
+
+export function attachmentData(attachment: any) {
+  return { id: attachment.id, filename: attachment.name, size: attachment.size, url: attachment.url, proxy_url: attachment.proxyURL, content_type: attachment.contentType, height: attachment.height, width: attachment.width, ephemeral: attachment.ephemeral };
 }
 
 export function constructInteraction(client: Client<true>, input: InteractionInput, context: {
@@ -60,7 +65,7 @@ export function constructInteraction(client: Client<true>, input: InteractionInp
       options: input.options, custom_id: input.customId,
       component_type: input.kind === 'button' ? 2 : input.componentType,
       values: input.values, resolved: context.resolved ?? {}, target_id: input.targetId,
-      components: Object.entries(input.fields).map(([custom_id, value]) => ({ type: 1, components: [{ type: 4, custom_id, value }] }))
+      components: modalComponents(input.fields, input.modalFields)
     }
   };
   if (context.message) data.message = messageData(context.message);
@@ -115,7 +120,7 @@ export function captureResponses(interaction: Interaction, options: {
       edited_timestamp: null, tts: false, mention_everyone: false, mentions: [], mention_roles: [],
       attachments: [], embeds: payload.embeds?.map((e: any) => e.toJSON?.() ?? e) ?? [],
       components: payload.components?.map((c: any) => c.toJSON?.() ?? c) ?? [],
-      pinned: false, type: 0, flags: ephemeral(payload) ? 64 : 0
+      pinned: false, type: 0, flags: new MessageFlagsBitField(payload.flags ?? 0).bitfield | (ephemeral(payload) ? 64 : 0)
     }) as Message;
     localMessages.set(result.id, result);
     Object.assign(result, {
@@ -129,6 +134,7 @@ export function captureResponses(interaction: Interaction, options: {
 
   function patchLocal(message: Message, payload: Raw) {
     const patch = { ...payload };
+    if (patch.flags !== undefined && message.flags.has(MessageFlags.Ephemeral)) patch.flags = new MessageFlagsBitField(patch.flags).bitfield | MessageFlags.Ephemeral;
     if (patch.embeds) patch.embeds = patch.embeds.map((e: any) => e.toJSON?.() ?? e);
     if (patch.components) patch.components = patch.components.map((c: any) => c.toJSON?.() ?? c);
     (message as any)._patch(patch);
@@ -145,7 +151,7 @@ export function captureResponses(interaction: Interaction, options: {
       message = edit && source && !localMessages.has(source.id) ? await source.edit(body) : await channel.send(body);
     } else {
       if (edit && source && localMessages.has(source.id)) { patchLocal(source, payload); message = source; }
-      else message = local({ ...payload, flags: hidden ? MessageFlags.Ephemeral : payload.flags });
+      else message = local({ ...payload, flags: new MessageFlagsBitField(payload.flags ?? 0).bitfield | (hidden ? MessageFlags.Ephemeral : 0) });
     }
     return message;
   }

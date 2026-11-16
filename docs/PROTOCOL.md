@@ -23,9 +23,9 @@ The protocol's runtime schemas and TypeScript definitions are in `src/protocol.t
 | `inspect` | Optional `channelId` |
 | `interact` | `interaction`, documented in [INTERACTIONS.md](INTERACTIONS.md) |
 | `messages` | `channelId`, optional `limit` from 1 to 100 |
-| `send` | `channelId`, `content` from 1 to 1900 characters |
+| `send` | `channelId`, either `content` from 1 to 2000 characters or a `message` object with content, embeds, components and flags |
 | `wait` | `channelId`, `contains`, `after`, optional `timeoutMs` from 100 to 30000 |
-| `assert` | `channelId`, optional `messageId`, one or more of `contains`, `embedTitle`, `componentId` |
+| `assert` | `channelId`, optional `messageId`, one or more of `contains`, `embedTitle`, `componentId`, `componentType` |
 | `fixture` | `kind` of `channel` or `role`, `name` containing lowercase letters, digits or hyphens |
 | `cleanup` | None |
 | `runs` | Optional report UUID `runId` |

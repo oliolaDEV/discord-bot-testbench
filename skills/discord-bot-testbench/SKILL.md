@@ -27,6 +27,8 @@ New MCP configuration may not become available until the coding client reconnect
 
 With MCP tools, begin with `testbench_status` and `testbench_commands`. Discover actual command names and options, exercise the changed flows and relevant failure paths, inspect reports and assert exact returned message IDs or affected resources. A passing handler is not proof of the intended behavior. Fix observed failures and retest; if two attempts fail for the same external prerequisite, explain that blocker rather than repeating the same action. Clean up tracked fixtures when done.
 
+For Components v2 or modern modals, read `docs/COMPONENTS.md` in the installed package. Use typed `modalFields` for checkbox, radio and select submissions. Assert nested text/custom IDs/component types. Static layout elements have no click handler. Native Python checkbox/radio widgets require discord.py 2.7; do not claim them supported by 2.6. File-upload fields use existing attachment metadata rather than a new device upload.
+
 ## Fidelity and access
 
 The initial interaction is synthetic; Discord API effects inside the bot are live. Do not claim Discord client input, Gateway delivery, rendering, complete command permissions, voice or real ephemeral delivery were tested. Private responses remain in local reports. Collector-based flows need another testing approach; do not silently rewrite application behavior to satisfy the adapter.

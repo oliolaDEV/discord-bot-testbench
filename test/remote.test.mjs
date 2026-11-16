@@ -10,6 +10,7 @@ import { TestbenchService } from '../dist/service.js';
 import { remoteDispatcher } from '../dist/remote.js';
 import { operationSchema } from '../dist/protocol.js';
 import { harness, ids } from './harness.mjs';
+import { Attachment } from 'discord.js';
 
 test('language-neutral Discord HTTP handlers return real command and button responses', async t => {
   const h = harness();
@@ -71,4 +72,36 @@ test('discord.py command, registered view, select, modal and private reply cross
   const privateReply = await run({ kind: 'command', name: 'private' });
   assert.equal(privateReply.status, 'passed', JSON.stringify(privateReply));
   assert.equal(h.sent.length, sentBefore);
+  h.command.name = 'v2';
+  const v2 = await run({ kind: 'command', name: 'v2' });
+  assert.equal(v2.status, 'passed', JSON.stringify(v2));
+  assert.equal(h.sent.at(-1).flags, 32768);
+  const modernButton = await run({ kind: 'button', messageId: v2.events[0].messageId, customId: 'advanced:open' });
+  assert.equal(modernButton.status, 'passed', JSON.stringify(modernButton));
+  const modern = await run({ kind: 'modal', customId: 'advanced:submit', modalFields: [
+    { type: 23, customId: 'consent', value: true },
+    { type: 21, customId: 'priority', value: 'high' },
+    { type: 22, customId: 'days', values: ['monday', 'friday'] },
+    { type: 3, customId: 'color', values: ['blue'] },
+    { type: 5, customId: 'person', values: [ids.user] }
+  ] });
+  assert.equal(modern.status, 'passed', JSON.stringify(modern));
+  assert.equal(h.sent.at(-1).content, 'Python modern fields verified');
+  h.command.name = 'entities';
+  assert.equal((await run({ kind: 'command', name: 'entities' })).status, 'passed');
+  const entities = await run({ kind: 'modal', customId: 'entities:submit', modalFields: [
+    { type: 6, customId: 'role', values: [ids.guild] },
+    { type: 8, customId: 'channel', values: [ids.channel] },
+    { type: 7, customId: 'mentionable', values: [ids.user, ids.guild] }
+  ] });
+  assert.equal(entities.status, 'passed', JSON.stringify(entities));
+  assert.equal(h.sent.at(-1).content, 'Python resource fields verified');
+  h.command.name = 'upload';
+  assert.equal((await run({ kind: 'command', name: 'upload' })).status, 'passed');
+  const attachmentSource = h.create({ content: 'Attachment' });
+  const attachmentId = '100000000000000040';
+  attachmentSource.attachments.set(attachmentId, new Attachment({ id: attachmentId, filename: 'report.txt', size: 12, url: 'https://example.com/report.txt', proxy_url: 'https://example.com/report.txt' }));
+  const upload = await run({ kind: 'modal', customId: 'upload:submit', attachmentMessageId: attachmentSource.id, modalFields: [{ type: 19, customId: 'files', values: [attachmentId] }] });
+  assert.equal(upload.status, 'passed', JSON.stringify(upload));
+  assert.equal(h.sent.at(-1).content, 'Python attachment metadata verified');
 });

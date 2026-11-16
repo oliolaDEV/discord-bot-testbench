@@ -7,7 +7,8 @@ import { tmpdir } from 'node:os';
 
 const exec = promisify(execFile);
 const root = await mkdtemp(join(tmpdir(), 'discord-testbench-package-'));
-const archive = resolve('discord-bot-testbench-0.1.0.tgz');
+const metadata = JSON.parse(await readFile('package.json', 'utf8'));
+const archive = resolve(`${metadata.name}-${metadata.version}.tgz`);
 if (!process.env.npm_execpath) throw new Error('Run this check with npm run test:package');
 
 try {

@@ -1,13 +1,28 @@
 {
   "name": "discord-bot-testbench",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Give coding agents a test bench inside your Discord development server.",
   "type": "module",
   "license": "MIT",
-  "repository": { "type": "git", "url": "git+https://github.com/oliolaDEV/discord-bot-testbench.git" },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/oliolaDEV/discord-bot-testbench.git"
+  },
   "homepage": "https://github.com/oliolaDEV/discord-bot-testbench#readme",
-  "bugs": { "url": "https://github.com/oliolaDEV/discord-bot-testbench/issues" },
-  "keywords": ["discord", "discord-bot", "testing", "mcp", "discord.js", "discord.py", "testbench", "coding-agent", "integration-testing"],
+  "bugs": {
+    "url": "https://github.com/oliolaDEV/discord-bot-testbench/issues"
+  },
+  "keywords": [
+    "discord",
+    "discord-bot",
+    "testing",
+    "mcp",
+    "discord.js",
+    "discord.py",
+    "testbench",
+    "coding-agent",
+    "integration-testing"
+  ],
   "engines": {
     "node": ">=22.12.0"
   },

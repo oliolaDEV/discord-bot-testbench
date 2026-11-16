@@ -30,12 +30,14 @@ export function harness() {
       content: body.content ?? '', timestamp: new Date().toISOString(), edited_timestamp: null,
       tts: false, mention_everyone: false, mentions: [], mention_roles: [], attachments: [],
       embeds: body.embeds?.map(e => e.toJSON?.() ?? e) ?? [],
-      components: body.components?.map(c => c.toJSON?.() ?? c) ?? [], pinned: false, type: 0, flags: 0
+      components: body.components?.map(c => c.toJSON?.() ?? c) ?? [], pinned: false, type: 0, flags: body.flags?.bitfield ?? body.flags ?? 0
     };
     const message = new Message(client, raw);
     message.edit = async update => {
       if (update.content !== undefined) message.content = update.content;
       if (update.components) message._patch({ components: update.components.map(c => c.toJSON?.() ?? c) });
+      if (update.embeds) message._patch({ embeds: update.embeds.map(e => e.toJSON?.() ?? e) });
+      if (update.flags !== undefined) message._patch({ flags: update.flags });
       return message;
     };
     message.delete = async () => { messages.delete(message.id); deleted.push(message.id); return message; };

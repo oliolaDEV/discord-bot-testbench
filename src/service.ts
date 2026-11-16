@@ -2,10 +2,11 @@ import { randomUUID } from 'node:crypto';
 import { readFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
-import { ChannelType, PermissionFlagsBits, type Client, type Interaction, type Message } from 'discord.js';
+import { ChannelType, PermissionFlagsBits, type Client, type Interaction, type Message, type MessageCreateOptions } from 'discord.js';
 import { type TestbenchConfig, writeJson } from './config.js';
-import { constructInteraction, captureResponses, memberData, messageData, userData, type ResponseEvent } from './interactions.js';
+import { constructInteraction, captureResponses, memberData, messageData, userData, attachmentData, type ResponseEvent } from './interactions.js';
 import { errorMessage, serialize, type InteractionInput, type Operation } from './protocol.js';
+import { componentTree, componentText, modalComponents, validateModal } from './components.js';
 
 export type Dispatcher = (interaction: Interaction) => unknown | Promise<unknown>;
 
@@ -13,6 +14,7 @@ export class TestbenchService {
   private busy = false;
   private activeHandlers = 0;
   private fixtures = new Map<string, 'channel' | 'role'>();
+  private modals = new Map<string, Record<string, any>>();
 
   constructor(
     private client: Client<true>,
@@ -88,14 +90,14 @@ export class TestbenchService {
       return { matched: false, timeoutMs: input.timeoutMs };
     }
     if (input.op === 'assert') {
-      if (!input.contains && !input.embedTitle && !input.componentId) throw new Error('Provide at least one assertion');
+      if ([input.contains, input.embedTitle, input.componentId, input.componentType].every(value => value === undefined)) throw new Error('Provide at least one assertion');
       const channel = await this.channel(input.channelId);
       const messages = input.messageId ? [await channel.messages.fetch(input.messageId)] : [...(await channel.messages.fetch({ limit: 100 })).values()];
       const matches = messages.filter(message => {
-        const components = JSON.stringify(message.components.map(c => c.toJSON()));
-        return (input.contains === undefined || message.content.includes(input.contains))
+        const components = message.components.map(c => c.toJSON());
+        return (input.contains === undefined || [message.content, componentText(components)].join('\n').includes(input.contains))
           && (input.embedTitle === undefined || message.embeds.some(e => e.title === input.embedTitle))
-          && (input.componentId === undefined || components.includes(JSON.stringify(input.componentId)));
+          && ((input.componentId === undefined && input.componentType === undefined) || componentTree(components).some(component => (input.componentId === undefined || component.custom_id === input.componentId) && (input.componentType === undefined || component.type === input.componentType)));
       });
       return { passed: matches.length > 0, examined: messages.length, messageIds: matches.map(m => m.id) };
     }
@@ -111,7 +113,8 @@ export class TestbenchService {
       if (input.op === 'interact') return await this.interact(input.interaction);
       if (input.op === 'send') {
         const channel = await this.channel(input.channelId);
-        return { mode: 'real-bot-message', message: messageData(await channel.send({ content: input.content, allowedMentions: { parse: [] } })), note: 'Sent by the bot. Handlers that ignore bot messages will ignore this message.' };
+        const payload = { ...(input.message ?? { content: input.content }), allowedMentions: { parse: [] } } as MessageCreateOptions;
+        return { mode: 'real-bot-message', message: messageData(await channel.send(payload)), note: 'Sent by the bot. Handlers that ignore bot messages will ignore this message.' };
       }
       if (input.op === 'fixture') {
         const guild = await this.guild();
@@ -155,7 +158,7 @@ export class TestbenchService {
   }
 
   private async resolve(input: InteractionInput, channel: any, guild: any) {
-    const resolved: Record<string, any> = { users: {}, members: {}, roles: {}, channels: {}, messages: {} };
+    const resolved: Record<string, any> = { users: {}, members: {}, roles: {}, channels: {}, messages: {}, attachments: {} };
     const addUser = async (id: string) => {
       const member = await guild.members.fetch({ user: id, force: true });
       resolved.users[id] = userData(member.user); resolved.members[id] = memberData(member);
@@ -195,6 +198,23 @@ export class TestbenchService {
       const type = { 5: 6, 6: 8, 7: 9, 8: 7 }[input.componentType];
       for (const value of input.values) await addValue(type!, value);
     }
+    if (input.kind === 'modal') {
+      const source = input.attachmentMessageId ? await channel.messages.fetch(input.attachmentMessageId) : undefined;
+      for (const field of input.modalFields) {
+        if ([5, 6, 7, 8].includes(field.type) && 'values' in field) {
+          const type = { 5: 6, 6: 8, 7: 9, 8: 7 }[field.type as 5 | 6 | 7 | 8];
+          for (const value of field.values) await addValue(type, value);
+        }
+        if (field.type === 19) {
+          if (!source && field.values.length) throw new Error('File-upload fields require attachmentMessageId from this test channel');
+          for (const id of field.values) {
+            const attachment = source?.attachments.get(id);
+            if (!attachment) throw new Error('Uploaded file ID does not exist on the attachment source message');
+            resolved.attachments[id] = attachmentData(attachment);
+          }
+        }
+      }
+    }
     return resolved;
   }
 
@@ -220,21 +240,20 @@ export class TestbenchService {
       message = await channel.messages.fetch(input.messageId);
       if (['button', 'select'].includes(input.kind)) {
         if (message.author.id !== this.client.user.id) throw new Error('Component source must be a message authored by the connected bot');
-        const find = (components: any[]): any => {
-          for (const value of components) {
-            if (value.custom_id === input.customId) return value;
-            const nested = find(value.components ?? (value.component ? [value.component] : []));
-            if (nested) return nested;
-          }
-        };
-        const component = find(message.components.map(c => c.toJSON()));
+        const component = componentTree(message.components.map(c => c.toJSON())).find(component => component.custom_id === input.customId);
         if (!component || component.disabled) throw new Error('Component does not exist or is disabled');
         if (component.type !== (input.kind === 'button' ? 2 : input.componentType)) throw new Error('Component type does not match');
         if (input.kind === 'select') {
           if (input.values.length < (component.min_values ?? 1) || input.values.length > (component.max_values ?? 1)) throw new Error('Select value count is outside the component limits');
           if (input.componentType === 3 && input.values.some(value => !component.options.some((o: any) => o.value === value))) throw new Error('Select contains a value absent from the source component');
+          if (new Set(input.values).size !== input.values.length) throw new Error('Select values must be unique');
+          if (input.componentType === 8 && component.channel_types?.length && input.values.some(value => !component.channel_types.includes(resolved.channels[value]?.type))) throw new Error('Selected channel type is not allowed');
         }
       }
+    }
+    if (input.kind === 'modal') {
+      const definition = this.modals.get(`${input.channelId}:${input.userId}:${input.customId}`);
+      if (definition) validateModal(definition, modalComponents(input.fields, input.modalFields), resolved);
     }
     const interaction = constructInteraction(this.client, input, { guildId: guild.id, member, channel, commandId, resolved, message });
     const id = randomUUID();
@@ -262,6 +281,13 @@ export class TestbenchService {
       })]);
     } catch (error) { errors.push(errorMessage(error)); }
     finally { clearTimeout(timer); capture.close(); }
+    for (const event of events) {
+      if (event.method === 'showModal') {
+        const modal = event.data as Record<string, any>;
+        this.modals.set(`${input.channelId}:${input.userId}:${modal.custom_id}`, modal);
+        if (this.modals.size > 100) this.modals.delete(this.modals.keys().next().value!);
+      }
+    }
     if (!capture.acknowledged()) errors.push('Handler did not acknowledge the interaction');
     if ((capture.acknowledgementMs() ?? 0) > 3000) errors.push('Initial acknowledgement exceeded the Discord 3 second deadline');
     const report = this.redact({
