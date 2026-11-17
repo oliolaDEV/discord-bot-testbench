@@ -48,7 +48,7 @@ The adapter constructs actual discord.js interaction classes. Type guards, optio
 
 It replaces interaction response methods because synthetic interactions have no Discord-issued callback token. Supported methods include `reply`, `deferReply`, `editReply`, `followUp`, `fetchReply`, `deleteReply`, `showModal`, `respond`, `update` and `deferUpdate` where the interaction class provides them. The synthetic webhook supports send, original-reply edits, fetch and delete. Follow-up webhook editing and arbitrary webhook operations are not implemented.
 
-Public response mirrors are ordinary bot messages, not interaction webhooks. They preserve the supplied content, embeds and components. Mentions are suppressed on mirrored sends and edits. Public mirrored file uploads use discord.js's normal channel-send behavior. Captured private file objects are not validated as delivered attachments.
+Public response mirrors are ordinary bot messages, not interaction webhooks. They preserve the supplied content, embeds and components. Mentions are suppressed on mirrored sends and edits. Public mirrored file uploads use discord.js's normal channel-send behavior. The Python adapter transports response files as base64 and converts them to buffers for mirrored sends and edits. Private reports capture the filename, description and file bytes; these captures are not validated as delivered attachments.
 
 `reply({ fetchReply: true })` returns a message. `reply({ withResponse: true })` returns the minimal `{ resource: { message } }` shape; this is not a complete Discord callback response. Fetching the original reply returns the captured or mirrored message. Code depending on additional callback metadata needs a separate test.
 

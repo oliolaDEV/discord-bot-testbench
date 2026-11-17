@@ -133,7 +133,7 @@ export function captureResponses(interaction: Interaction, options: {
   }
 
   function patchLocal(message: Message, payload: Raw) {
-    const patch = { ...payload };
+    const patch: Raw = { ...payload, id: message.id };
     if (patch.flags !== undefined && message.flags.has(MessageFlags.Ephemeral)) patch.flags = new MessageFlagsBitField(patch.flags).bitfield | MessageFlags.Ephemeral;
     if (patch.embeds) patch.embeds = patch.embeds.map((e: any) => e.toJSON?.() ?? e);
     if (patch.components) patch.components = patch.components.map((c: any) => c.toJSON?.() ?? c);
@@ -144,7 +144,7 @@ export function captureResponses(interaction: Interaction, options: {
     const hidden = edit ? Boolean(target.ephemeral) : ephemeral(payload);
     let message: Message;
     if (options.mirror && !hidden) {
-      const { ephemeral: _ephemeral, fetchReply: _fetchReply, withResponse: _withResponse, ...body } = payload;
+      const { ephemeral: _ephemeral, fetchReply: _fetchReply, withResponse: _withResponse, deleteAfter: _deleteAfter, ...body } = payload;
       if (body.flags !== undefined) body.flags = new MessageFlagsBitField(body.flags).bitfield & ~MessageFlags.Ephemeral;
       body.allowedMentions = { parse: [], repliedUser: false };
       const channel = interaction.channel as any;
@@ -152,6 +152,10 @@ export function captureResponses(interaction: Interaction, options: {
     } else {
       if (edit && source && localMessages.has(source.id)) { patchLocal(source, payload); message = source; }
       else message = local({ ...payload, flags: new MessageFlagsBitField(payload.flags ?? 0).bitfield | (hidden ? MessageFlags.Ephemeral : 0) });
+    }
+    if (payload.deleteAfter !== undefined) {
+      const timer = setTimeout(() => { void message.delete().catch(() => {}); }, Math.max(0, payload.deleteAfter * 1000));
+      timer.unref();
     }
     return message;
   }

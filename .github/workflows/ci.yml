@@ -10,6 +10,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest]
         node: [22, 24]
+        discord-py: ['2.6.*', '2.7.*', '2.8.0a']
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7.0.1
@@ -21,7 +22,7 @@ jobs:
       - uses: actions/setup-python@v7.1.0
         with:
           python-version: '3.12'
-      - run: python -m pip install ./adapters/python
+      - run: python -m pip install ./adapters/python "discord.py==${{ matrix.discord-py }}"
       - name: Configure Python adapter test
         shell: python
         run: |

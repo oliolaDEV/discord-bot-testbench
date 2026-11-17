@@ -25,7 +25,7 @@ To let the agent handle installation, give it this repository and ask it to foll
 
 Test inputs are synthetic interactions dispatched into your bot. Discord API calls made by the handlers are real. Tests check handler behavior and server state; they do not exercise Discord's command picker, Gateway delivery or client rendering.
 
-Native adapters support **discord.js 14** and **discord.py 2.6–2.7**. A language-neutral HTTP adapter connects other runtimes, including C#, Java/Kotlin, Go, Rust, C++, Ruby and PHP, through an application development endpoint. These are integration routes, not a claim that every gateway SDK works unchanged. The controller requires Node.js 22.12+. See the [adapter guide and support matrix](docs/ADAPTERS.md).
+Native adapters support **discord.js 14** and **discord.py 2.6–2.8**. A language-neutral HTTP adapter connects other runtimes, including C#, Java/Kotlin, Go, Rust, C++, Ruby and PHP, through an application development endpoint. These are integration routes, not a claim that every gateway SDK works unchanged. The controller requires Node.js 22.12+. See the [adapter guide and support matrix](docs/ADAPTERS.md).
 
 ## Get started
 
@@ -189,7 +189,10 @@ The MCP server also provides the `test-discord-changes` prompt. Interaction repo
 | --- | --- |
 | Existing asynchronous discord.js interaction routers | Executed in the running bot process |
 | Discord API calls made by handlers | Real, using the bot's existing permissions |
-| Public replies | Real channel messages by default |
+| Public replies | Real channel messages by default; Python `delete_after` schedules mirror deletion |
+| discord.py 2.6–2.8 commands | CommandTree and hybrid slash commands, including deferred followups |
+| Python components | Registered Views, LayoutViews and DynamicItem regex factories |
+| Python response files | Public uploads and private report captures; initial replies, followups and attachment edits |
 | Private replies | Captured locally; no real ephemeral delivery |
 | User/member/channel/role context | Real fetched resources and permission snapshots |
 | Discord client input and rendering | Not exercised |
@@ -220,6 +223,8 @@ npm run check
 npm test
 npm pack --dry-run
 ```
+
+CI runs the Python adapter tests against discord.py 2.6, 2.7 and 2.8.0a. To include them locally, install `./adapters/python` and set `TESTBENCH_PYTHON` to that Python executable before `npm test`.
 
 The automated suite uses real discord.js interaction classes, an isolated Discord transport double and an actual local HTTP/MCP round trip. It requires no credentials and does not claim live Discord coverage. Run the included bot and smoke scenario to verify a real Discord installation.
 

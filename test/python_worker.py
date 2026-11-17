@@ -1,6 +1,8 @@
 import asyncio
+import io
 import json
 import sys
+from datetime import timedelta
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "adapters" / "python"))
@@ -8,9 +10,20 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "adapters" / "pytho
 import discord
 from discord.ext import commands
 from discord_testbench import start_testbench
+from discord_testbench.adapter import _payload
 
 
 async def main():
+    missing = discord.utils.MISSING
+    assert _payload(missing, embed=missing, embeds=missing, view=missing, allowed_mentions=missing, file=missing, files=None, poll=missing, username=missing, avatar_url=None, thread=missing, applied_tags=None) == {}
+    assert _payload(unknown=None) == {}
+    for options in [{"poll": discord.Poll(question="Test?", duration=timedelta(hours=1))}, {"username": "custom"}]:
+        try:
+            _payload(**options)
+        except NotImplementedError as error:
+            assert next(iter(options)) in str(error)
+        else:
+            raise AssertionError("Unsupported set options must fail")
     root = Path(sys.argv[1])
     config = json.loads((root / "testbench.config.json").read_text())
     guild_id = config["guildId"]
@@ -42,7 +55,7 @@ async def main():
 
             @discord.ui.select(custom_id="color", options=[discord.SelectOption(label="Blue", value="blue")])
             async def color(self, interaction, select):
-                await interaction.response.edit_message(content=f"Selected: {select.values[0]}")
+                await interaction.response.edit_message(content=f"Selected: {select.values[0]}", attachments=[upload_file("component.txt")])
 
         class AdvancedModal(discord.ui.Modal):
             def __init__(self):
@@ -99,6 +112,52 @@ async def main():
             def __init__(self):
                 super().__init__()
                 self.add_item(discord.ui.Container(discord.ui.TextDisplay("Python v2 controls"), discord.ui.Separator(), discord.ui.ActionRow(OpenAdvanced())))
+
+        class DynamicButton(discord.ui.DynamicItem[discord.ui.Button], template=r"dynamic:(?P<number>[0-9]+)"):
+            def __init__(self, number):
+                self.number = number
+                super().__init__(discord.ui.Button(label="Dynamic", custom_id=f"dynamic:{number}"))
+
+            @classmethod
+            async def from_custom_id(cls, interaction, item, match):
+                return cls(int(match["number"]))
+
+            async def interaction_check(self, interaction):
+                return self.number != 0
+
+            async def callback(self, interaction):
+                assert self.view is not None
+                assert self in list(self.view.walk_children())
+                await interaction.response.send_message(f"Dynamic: {self.number}")
+
+        bot.add_dynamic_items(DynamicButton)
+
+        @bot.hybrid_command(name="hybrid")
+        async def hybrid(ctx, private: bool = False):
+            await ctx.send("Python hybrid", ephemeral=private)
+
+        @bot.hybrid_command(name="hybrid_defer")
+        async def hybrid_defer(ctx, private: bool = False):
+            await ctx.defer(ephemeral=private)
+            await ctx.send("Python hybrid followup", ephemeral=private)
+
+        def upload_file(name="response.txt"):
+            return discord.File(io.BytesIO(b"Python file bytes"), filename=name, description="Test attachment")
+
+        @bot.tree.command(name="response_file")
+        async def response_file(interaction: discord.Interaction, private: bool = False):
+            await interaction.response.send_message("Python file", file=upload_file(), ephemeral=private)
+
+        @bot.tree.command(name="file_edits")
+        async def file_edits(interaction: discord.Interaction, private: bool = False):
+            await interaction.response.send_message("Before edit", ephemeral=private)
+            await interaction.edit_original_response(attachments=[upload_file("edited.txt")])
+            await interaction.followup.send("Followup file", files=[upload_file("followup.txt")], ephemeral=private, username=missing, avatar_url=None, thread=missing, applied_tags=None)
+
+        @bot.tree.command(name="temporary")
+        async def temporary(interaction: discord.Interaction):
+            await interaction.response.send_message("Temporary reply", delete_after=0.1)
+            await interaction.followup.send("Temporary followup", delete_after=0.1)
 
         @bot.tree.command(name="ping")
         async def ping(interaction: discord.Interaction, text: str = "Python pong"):

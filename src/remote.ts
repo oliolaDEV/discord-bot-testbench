@@ -33,6 +33,14 @@ export function remoteDispatcher(endpoint: string, secret: string, timeoutMs = 1
         }
         const body = JSON.parse(Buffer.concat(chunks).toString('utf8'));
         if (!methods.has(body.method) || !Array.isArray(body.args) || body.args.length > 2 || typeof (interaction as any)[body.method] !== 'function') throw new Error('Unsupported response method');
+        for (const payload of body.args) {
+          if (payload && typeof payload === 'object' && Array.isArray(payload.files)) {
+            payload.files = payload.files.map((file: any) => {
+              if (file.encoding !== 'base64' || typeof file.attachment !== 'string' || typeof file.name !== 'string') throw new Error('Invalid adapter file payload');
+              return { attachment: Buffer.from(file.attachment, 'base64'), name: file.name, description: file.description };
+            });
+          }
+        }
         const result = await (interaction as any)[body.method](...body.args);
         const value = result && typeof result === 'object' && 'channelId' in result ? { message: messageData(result as Message) } : result?.resource?.message ? { message: messageData(result.resource.message) } : result ?? null;
         reply(200, { result: serialize(value) });

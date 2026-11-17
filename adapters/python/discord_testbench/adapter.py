@@ -1,4 +1,5 @@
 import asyncio
+import base64
 import hmac
 import json
 import os
@@ -20,11 +21,12 @@ def _loopback(value):
 
 
 def _payload(content=None, **kwargs):
-    unsupported = set(kwargs) - {"embed", "embeds", "view", "ephemeral", "allowed_mentions", "silent", "suppress_embeds", "tts"}
+    kwargs = {key: value for key, value in kwargs.items() if value is not discord.utils.MISSING and value is not None}
+    unsupported = set(kwargs) - {"embed", "embeds", "view", "ephemeral", "allowed_mentions", "silent", "suppress_embeds", "tts", "file", "files", "attachments", "delete_after"}
     if unsupported:
         raise NotImplementedError("Unsupported synthetic response options: " + ", ".join(sorted(unsupported)))
     result = {}
-    if content is not None:
+    if content is not None and content is not discord.utils.MISSING:
         result["content"] = str(content)
     if "embed" in kwargs:
         result["embeds"] = [kwargs["embed"].to_dict()] if kwargs["embed"] else []
@@ -39,6 +41,31 @@ def _payload(content=None, **kwargs):
         result["flags"] = flags
     if "tts" in kwargs:
         result["tts"] = kwargs["tts"]
+    if "file" in kwargs and "files" in kwargs:
+        raise TypeError("Cannot mix file and files")
+    uploads = list(kwargs.get("files", []))
+    if "file" in kwargs:
+        uploads.append(kwargs["file"])
+    if "attachments" in kwargs:
+        result["attachments"] = []
+        for attachment in kwargs["attachments"]:
+            if isinstance(attachment, discord.File):
+                uploads.append(attachment)
+            else:
+                result["attachments"].append(attachment.to_dict())
+    if uploads:
+        result["files"] = []
+        for upload in uploads:
+            if not isinstance(upload, discord.File):
+                raise TypeError("Response files must be discord.File objects")
+            position = upload.fp.tell()
+            try:
+                data = upload.fp.read()
+            finally:
+                upload.fp.seek(position)
+            result["files"].append({"attachment": base64.b64encode(data).decode("ascii"), "name": upload.filename, "description": upload.description, "encoding": "base64"})
+    if "delete_after" in kwargs:
+        result["deleteAfter"] = float(kwargs["delete_after"])
     return result
 
 
@@ -71,7 +98,7 @@ class TestbenchInteraction(discord.Interaction):
             return value
 
     def _store_view(self, view, message):
-        if view is not None:
+        if view is not None and view is not discord.utils.MISSING:
             self._state.store_view(view, message.id if message else None)
 
     async def original_response(self):
@@ -161,8 +188,30 @@ async def _dispatch(bot, interaction):
     if interaction.type == discord.InteractionType.component:
         key = (data["component_type"], data["custom_id"])
         item = store._views.get(interaction.message.id, {}).get(key) or store._views.get(None, {}).get(key)
+        matched = False
+        for pattern, factory in store._dynamic_items.items():
+            match = pattern.fullmatch(data["custom_id"])
+            if match is None:
+                continue
+            view_cls = discord.ui.LayoutView if interaction.message.flags.components_v2 else discord.ui.View
+            view = view_cls.from_message(interaction.message, timeout=None)
+            base_item = discord.utils.find(lambda child: child.type.value == data["component_type"] and getattr(child, "custom_id", None) == data["custom_id"], view.walk_children())
+            if base_item is None:
+                continue
+            dynamic = await factory.from_custom_id(interaction, base_item, match)
+            parent = base_item._parent or view
+            parent._swap_item(base_item, dynamic, data["custom_id"])
+            dynamic._view = view
+            dynamic._rendered_row = base_item._rendered_row
+            dynamic._refresh_state(interaction, data)
+            if not await dynamic.interaction_check(interaction):
+                raise RuntimeError("Dynamic item interaction check rejected the test identity")
+            await dynamic.callback(interaction)
+            matched = True
         if item is None or item.view is None:
-            raise RuntimeError("No registered view callback matches the component. Dynamic items require a custom dispatcher.")
+            if matched:
+                return
+            raise RuntimeError("No registered view or dynamic item callback matches the component")
         item._refresh_state(interaction, data)
         if not await item._run_checks(interaction) or not await item.view.interaction_check(interaction):
             raise RuntimeError("View interaction check rejected the test identity")

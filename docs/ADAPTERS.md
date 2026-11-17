@@ -5,7 +5,7 @@ The MCP client and CLI speak one protocol. Your bot keeps its language and frame
 | Runtime | Integration | Verification |
 | --- | --- | --- |
 | JavaScript / TypeScript, discord.js 14 | Native `startTestbench(client)` | Command, components, modal, autocomplete and context-menu integration tests |
-| Python, discord.py 2.6–2.7 | Native `start_testbench(bot)` | Real discord.py command tree, View button/select, Modal and private-response tests over the shared transport |
+| Python, discord.py 2.6–2.8 | Native `start_testbench(bot)` | Real discord.py command tree including hybrid slash commands, View and DynamicItem button/select dispatch, Modal, file responses and private captures over the shared transport |
 | C# / .NET | HTTP interaction router | ASP.NET helper included; application router integration required |
 | Java / Kotlin | HTTP interaction router | JDK HTTP helper included; application router integration required |
 | Go | HTTP interaction router | Standard-library helper and authentication test included |
@@ -47,7 +47,11 @@ testbench = await start_testbench(bot, root="/absolute/path/to/bot")
 
 Do this once, even if `on_ready` fires again. Await `testbench.close()` during shutdown. The adapter starts an authenticated Python HTTP endpoint and the Node observer automatically using the bot's existing token, without printing it. The observer opens an additional development-bot Gateway session for discovery and live checks. MCP itself does not receive the token.
 
-Commands run through the actual CommandTree, preserving its converters and checks. Components use registered Views and LayoutViews, and captured modals use their real instances. The adapter uses internal discord.py routing APIs; supported versions are constrained and exercised in CI. Checkbox, radio and file-upload widgets require discord.py 2.7. LayoutView messages receive the Components v2 flag automatically. Modal select resources and existing attachment metadata are resolved into native objects. DynamicItem dispatch, hybrid/prefix commands, persistent component database reconstruction, new file-byte uploads and full callback-response metadata are not implemented. Provide an explicit async `dispatch` function for application-specific routing. Private response objects are local captures and have partial Message semantics.
+Commands run through the actual CommandTree, preserving its converters and checks. Hybrid commands support the slash-command path, including `ctx.send()` and `ctx.defer()` followed by `ctx.send()`. Components use registered Views and LayoutViews or registered DynamicItem regex factories, and captured modals use their real instances. The adapter uses internal discord.py routing APIs; supported versions 2.6–2.8 are constrained and exercised in CI (2.8 currently uses 2.8.0a). Checkbox, radio and file-upload widgets require discord.py 2.7. LayoutView messages receive the Components v2 flag automatically. Modal select resources and existing attachment metadata are resolved into native objects.
+
+`discord.File` responses support `file`/`files` on initial replies and followups, and new files in `attachments` on original-response and component edits. Public mirrors upload the bytes; private reports capture filenames, descriptions and bytes without delivering them to Discord. The JSON callback transport encodes uploads as base64 and limits the complete request to 1 MiB. `delete_after` schedules public mirror deletion in the controller process, including after handler completion; deletion failures are ignored. Unset (`MISSING` or `None`) response options are ignored. A supplied `poll` or other unsupported option raises a clear error.
+
+Prefix-message dispatch, persistent component database reconstruction and full callback-response metadata are not implemented. Provide an explicit async `dispatch` function for application-specific routing. Private response objects are local captures and have partial Message semantics.
 
 ## Any language: immediate HTTP responses
 
@@ -87,6 +91,8 @@ Use `connect --mode testbench --endpoint URL` for asynchronous handlers. Testben
 The illustrative interaction above is abbreviated; real payloads include guild, channel, member, permissions, command definitions and resolved data. Only accept loopback callback URLs and do not log their bearer secrets.
 
 During execution, post `{ "method": "reply", "args": [{ "content": "Hello", "fetchReply": true }] }` to the callback URL with its bearer token. Other methods are `deferReply`, `editReply`, `followUp`, `fetchReply`, `deleteReply`, `showModal`, `respond`, `update` and `deferUpdate`. The callback returns `{ "result": ... }`, including `{ "message": DISCORD_MESSAGE_JSON }` for returned messages. It authenticates requests and rejects unsupported methods.
+
+Response payloads can include `files: [{ "attachment": "BASE64_BYTES", "encoding": "base64", "name": "report.txt", "description": "Optional description" }]`. The callback decodes these into upload buffers; the complete JSON request must fit within 1 MiB. A `deleteAfter` number schedules mirror deletion after that many seconds without keeping the callback open.
 
 After awaited work completes, return `{ "handled": true, "errors": [] }` from the original endpoint. Include application failures in `errors`. Do not return completion while relevant work is detached. The Python adapter is a complete example of this contract.
 

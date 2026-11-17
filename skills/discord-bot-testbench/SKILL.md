@@ -9,7 +9,7 @@ Handle the installation, bot integration and test loop yourself. Ask the user on
 
 ## Set up a project
 
-Locate the intended bot project and inspect its manifests, startup code, interaction router and environment-variable names without printing secret values. The controller needs Node.js 22.12+. Native integrations exist for discord.js 14 and discord.py 2.6–2.7. Other runtimes use a development-only HTTP interaction handler. Read the installed package's `docs/ADAPTERS.md` for the selected route; do not migrate the bot or claim an unimplemented native SDK adapter exists.
+Locate the intended bot project and inspect its manifests, startup code, interaction router and environment-variable names without printing secret values. The controller needs Node.js 22.12+. Native integrations exist for discord.js 14 and discord.py 2.6–2.8. Python supports hybrid slash commands, registered DynamicItems and response files; prefix-message dispatch remains unsupported. Other runtimes use a development-only HTTP interaction handler. Read the installed package's `docs/ADAPTERS.md` for the selected route; do not migrate the bot or claim an unimplemented native SDK adapter exists.
 
 Install the package from the supplied checkout or release archive. A checkout needs `npm ci` to build it; install that checkout into the bot project using its absolute path. Do not invent a published npm package or GitHub URL. If already installed, use the existing local binary.
 

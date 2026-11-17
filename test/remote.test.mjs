@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
-import { spawn } from 'node:child_process';
+import { spawn, execFileSync } from 'node:child_process';
 import { mkdtemp, readFile, writeFile, rm, mkdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -37,7 +37,7 @@ test('language-neutral Discord HTTP handlers return real command and button resp
   assert.equal(message.content, 'Button updated');
 });
 
-test('discord.py command, registered view, select, modal and private reply cross the adapter protocol', { skip: !process.env.TESTBENCH_PYTHON }, async t => {
+test('discord.py commands, hybrid replies, files, deletion, views, dynamic items and modals cross the adapter protocol', { skip: !process.env.TESTBENCH_PYTHON }, async t => {
   const h = harness();
   const root = await mkdtemp(join(tmpdir(), 'testbench-python-'));
   await mkdir(join(root, 'runs'));
@@ -67,41 +67,89 @@ test('discord.py command, registered view, select, modal and private reply cross
   assert.equal(h.sent.at(-1).content, 'Ticket: Agent ticket');
   const select = await run({ kind: 'select', messageId, customId: 'color', values: ['blue'] });
   assert.equal(select.status, 'passed', JSON.stringify(select));
+  assert.equal(select.events[0].data.files[0].name, 'component.txt');
   h.command.name = 'private';
   const sentBefore = h.sent.length;
   const privateReply = await run({ kind: 'command', name: 'private' });
   assert.equal(privateReply.status, 'passed', JSON.stringify(privateReply));
   assert.equal(h.sent.length, sentBefore);
-  h.command.name = 'v2';
-  const v2 = await run({ kind: 'command', name: 'v2' });
-  assert.equal(v2.status, 'passed', JSON.stringify(v2));
-  assert.equal(h.sent.at(-1).flags, 32768);
-  const modernButton = await run({ kind: 'button', messageId: v2.events[0].messageId, customId: 'advanced:open' });
-  assert.equal(modernButton.status, 'passed', JSON.stringify(modernButton));
-  const modern = await run({ kind: 'modal', customId: 'advanced:submit', modalFields: [
-    { type: 23, customId: 'consent', value: true },
-    { type: 21, customId: 'priority', value: 'high' },
-    { type: 22, customId: 'days', values: ['monday', 'friday'] },
-    { type: 3, customId: 'color', values: ['blue'] },
-    { type: 5, customId: 'person', values: [ids.user] }
-  ] });
-  assert.equal(modern.status, 'passed', JSON.stringify(modern));
-  assert.equal(h.sent.at(-1).content, 'Python modern fields verified');
-  h.command.name = 'entities';
-  assert.equal((await run({ kind: 'command', name: 'entities' })).status, 'passed');
-  const entities = await run({ kind: 'modal', customId: 'entities:submit', modalFields: [
-    { type: 6, customId: 'role', values: [ids.guild] },
-    { type: 8, customId: 'channel', values: [ids.channel] },
-    { type: 7, customId: 'mentionable', values: [ids.user, ids.guild] }
-  ] });
-  assert.equal(entities.status, 'passed', JSON.stringify(entities));
-  assert.equal(h.sent.at(-1).content, 'Python resource fields verified');
-  h.command.name = 'upload';
-  assert.equal((await run({ kind: 'command', name: 'upload' })).status, 'passed');
-  const attachmentSource = h.create({ content: 'Attachment' });
-  const attachmentId = '100000000000000040';
-  attachmentSource.attachments.set(attachmentId, new Attachment({ id: attachmentId, filename: 'report.txt', size: 12, url: 'https://example.com/report.txt', proxy_url: 'https://example.com/report.txt' }));
-  const upload = await run({ kind: 'modal', customId: 'upload:submit', attachmentMessageId: attachmentSource.id, modalFields: [{ type: 19, customId: 'files', values: [attachmentId] }] });
-  assert.equal(upload.status, 'passed', JSON.stringify(upload));
-  assert.equal(h.sent.at(-1).content, 'Python attachment metadata verified');
+  const version = execFileSync(process.env.TESTBENCH_PYTHON, ['-c', 'import discord; print(discord.__version__)'], { encoding: 'utf8' }).trim();
+  if (Number(version.split('.')[1]) >= 7) {
+    h.command.name = 'v2';
+    const v2 = await run({ kind: 'command', name: 'v2' });
+    assert.equal(v2.status, 'passed', JSON.stringify(v2));
+    assert.equal(h.sent.at(-1).flags, 32768);
+    const modernButton = await run({ kind: 'button', messageId: v2.events[0].messageId, customId: 'advanced:open' });
+    assert.equal(modernButton.status, 'passed', JSON.stringify(modernButton));
+    const modern = await run({ kind: 'modal', customId: 'advanced:submit', modalFields: [
+      { type: 23, customId: 'consent', value: true },
+      { type: 21, customId: 'priority', value: 'high' },
+      { type: 22, customId: 'days', values: ['monday', 'friday'] },
+      { type: 3, customId: 'color', values: ['blue'] },
+      { type: 5, customId: 'person', values: [ids.user] }
+    ] });
+    assert.equal(modern.status, 'passed', JSON.stringify(modern));
+    assert.equal(h.sent.at(-1).content, 'Python modern fields verified');
+    h.command.name = 'entities';
+    assert.equal((await run({ kind: 'command', name: 'entities' })).status, 'passed');
+    const entities = await run({ kind: 'modal', customId: 'entities:submit', modalFields: [
+      { type: 6, customId: 'role', values: [ids.guild] },
+      { type: 8, customId: 'channel', values: [ids.channel] },
+      { type: 7, customId: 'mentionable', values: [ids.user, ids.guild] }
+    ] });
+    assert.equal(entities.status, 'passed', JSON.stringify(entities));
+    assert.equal(h.sent.at(-1).content, 'Python resource fields verified');
+    h.command.name = 'upload';
+    assert.equal((await run({ kind: 'command', name: 'upload' })).status, 'passed');
+    const attachmentSource = h.create({ content: 'Attachment' });
+    const attachmentId = '100000000000000040';
+    attachmentSource.attachments.set(attachmentId, new Attachment({ id: attachmentId, filename: 'report.txt', size: 12, url: 'https://example.com/report.txt', proxy_url: 'https://example.com/report.txt' }));
+    const upload = await run({ kind: 'modal', customId: 'upload:submit', attachmentMessageId: attachmentSource.id, modalFields: [{ type: 19, customId: 'files', values: [attachmentId] }] });
+    assert.equal(upload.status, 'passed', JSON.stringify(upload));
+    assert.equal(h.sent.at(-1).content, 'Python attachment metadata verified');
+  }
+  for (const name of ['hybrid', 'hybrid_defer']) {
+    for (const privateReply of [false, true]) {
+      h.command.name = name;
+      const before = h.sent.length;
+      const result = await run({ kind: 'command', name, options: [{ type: 5, name: 'private', value: privateReply }] });
+      assert.equal(result.status, 'passed', JSON.stringify(result) + diagnostics);
+      assert.equal(h.sent.length, before + (privateReply ? 0 : 1));
+      assert.equal(result.events.at(-1).visibility, privateReply ? 'captured-ephemeral' : 'discord-channel');
+      assert.equal(result.events.at(-1).data.content, name === 'hybrid' ? 'Python hybrid' : 'Python hybrid followup');
+      assert.deepEqual(result.events.map(event => event.method), name === 'hybrid' ? ['reply'] : ['deferReply', 'followUp']);
+    }
+  }
+  for (const name of ['response_file', 'file_edits']) {
+    for (const privateReply of [false, true]) {
+      h.command.name = name;
+      const before = h.sent.length;
+      const result = await run({ kind: 'command', name, options: [{ type: 5, name: 'private', value: privateReply }] });
+      assert.equal(result.status, 'passed', JSON.stringify(result) + diagnostics);
+      assert.equal(h.sent.length, before + (privateReply ? 0 : name === 'file_edits' ? 2 : 1));
+      if (name === 'file_edits') assert.equal(result.events[1].messageId, result.events[0].messageId);
+      const saved = JSON.parse(await readFile(join(root, 'runs', result.id + '.json'), 'utf8'));
+      assert.deepEqual(saved.events, result.events);
+      const files = result.events.filter(event => event.data?.files).flatMap(event => event.data.files);
+      assert.deepEqual(files.map(file => file.name), name === 'response_file' ? ['response.txt'] : ['edited.txt', 'followup.txt']);
+      for (const file of files) assert.equal(Buffer.from(file.attachment.data).toString(), 'Python file bytes');
+      if (!privateReply) {
+        assert.ok(Buffer.isBuffer(h.sent.at(-1).files[0].attachment));
+        assert.equal(h.sent.at(-1).files[0].attachment.toString(), 'Python file bytes');
+      }
+    }
+  }
+  h.command.name = 'temporary';
+  const temporary = await run({ kind: 'command', name: 'temporary' });
+  assert.equal(temporary.status, 'passed', JSON.stringify(temporary));
+  await delay(200);
+  for (const event of temporary.events) assert.ok(h.deleted.includes(event.messageId));
+  for (const [number, v2] of [[42, false], [43, true], [0, false]]) {
+    const row = { type: 1, components: [{ type: 2, style: 1, custom_id: `dynamic:${number}`, label: 'Dynamic' }] };
+    const dynamicMessage = h.create({ flags: v2 ? 32768 : 0, components: v2 ? [{ type: 17, components: [row] }] : [row] });
+    const dynamic = await run({ kind: 'button', messageId: dynamicMessage.id, customId: `dynamic:${number}` });
+    assert.equal(dynamic.status, number ? 'passed' : 'failed', JSON.stringify(dynamic));
+    if (number) assert.equal(h.sent.at(-1).content, `Dynamic: ${number}`);
+    else assert.ok(dynamic.errors.some(error => error.includes('Dynamic item interaction check rejected')));
+  }
 });
