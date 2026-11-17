@@ -37,6 +37,48 @@ test('language-neutral Discord HTTP handlers return real command and button resp
   assert.equal(message.content, 'Button updated');
 });
 
+test('adapter callbacks allow 10 MiB uploads while retaining body limits', async t => {
+  let payload;
+  let callbackResult;
+  const received = [];
+  const server = createServer(async (request, response) => {
+    try {
+      const chunks = [];
+      for await (const chunk of request) chunks.push(chunk);
+      const { callback } = JSON.parse(Buffer.concat(chunks));
+      const result = await fetch(callback.url, {
+        method: 'POST', headers: { Authorization: 'Bearer ' + callback.token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ method: 'reply', args: [payload] })
+      });
+      callbackResult = { status: result.status, body: await result.json() };
+      response.end(JSON.stringify({ handled: true, errors: [] }));
+    } catch (error) {
+      response.end(JSON.stringify({ handled: true, errors: [error.message] }));
+    }
+  });
+  await new Promise(resolvePromise => server.listen(0, '127.0.0.1', resolvePromise));
+  t.after(async () => { server.closeAllConnections(); await new Promise(r => server.close(r)); });
+  const dispatch = remoteDispatcher(`http://127.0.0.1:${server.address().port}/interactions`, 'a'.repeat(64), 10000);
+  const interaction = { testbenchPayload: {}, reply: async value => { received.push(value); } };
+  const file = { attachment: Buffer.alloc(10 * 1048576, 42).toString('base64'), encoding: 'base64', name: 'large.bin' };
+  payload = { files: [file] };
+  await dispatch(interaction);
+  assert.equal(callbackResult.status, 200);
+  assert.equal(received.length, 1);
+  assert.deepEqual(received[0].files[0].attachment, Buffer.alloc(10 * 1048576, 42));
+  for (const extra of [{}, { files: [] }, { files: 'placeholder' }]) {
+    payload = { content: 'x'.repeat(1048576), ...extra };
+    await dispatch(interaction);
+    assert.equal(callbackResult.status, 413);
+    assert.equal(callbackResult.body.error, 'Response exceeds 1 MiB');
+  }
+  payload = { files: [{ ...file, attachment: 'A'.repeat(14 * 1048576) }] };
+  await dispatch(interaction);
+  assert.equal(callbackResult.status, 413);
+  assert.equal(callbackResult.body.error, 'Response exceeds 14 MiB');
+  assert.equal(received.length, 1);
+});
+
 test('discord.py commands, hybrid replies, files, deletion, views, dynamic items and modals cross the adapter protocol', { skip: !process.env.TESTBENCH_PYTHON }, async t => {
   const h = harness();
   const root = await mkdtemp(join(tmpdir(), 'testbench-python-'));

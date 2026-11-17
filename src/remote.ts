@@ -28,11 +28,13 @@ export function remoteDispatcher(endpoint: string, secret: string, timeoutMs = 1
         let size = 0;
         for await (const chunk of request) {
           size += chunk.length;
-          if (size > 1048576) { reply(413, { error: 'Response exceeds 1 MiB' }); return; }
+          if (size > 14 * 1048576) { reply(413, { error: 'Response exceeds 14 MiB' }); return; }
           chunks.push(chunk);
         }
         const body = JSON.parse(Buffer.concat(chunks).toString('utf8'));
         if (!methods.has(body.method) || !Array.isArray(body.args) || body.args.length > 2 || typeof (interaction as any)[body.method] !== 'function') throw new Error('Unsupported response method');
+        const hasFiles = body.args.some((payload: any) => Array.isArray(payload?.files) && payload.files.length > 0);
+        if (!hasFiles && size > 1048576) { reply(413, { error: 'Response exceeds 1 MiB' }); return; }
         for (const payload of body.args) {
           if (payload && typeof payload === 'object' && Array.isArray(payload.files)) {
             payload.files = payload.files.map((file: any) => {
