@@ -224,7 +224,7 @@ npm test
 npm pack --dry-run
 ```
 
-CI runs the Python adapter tests against discord.py 2.6, 2.7 and 2.8.0a. To include them locally, install `./adapters/python` and set `TESTBENCH_PYTHON` to that Python executable before `npm test`.
+CI runs the Python adapter tests against discord.py 2.6, 2.7 and a pinned upstream 2.8.0a development revision. To include them locally, install `./adapters/python` and set `TESTBENCH_PYTHON` to that Python executable before `npm test`.
 
 The automated suite uses real discord.js interaction classes, an isolated Discord transport double and an actual local HTTP/MCP round trip. It requires no credentials and does not claim live Discord coverage. Run the included bot and smoke scenario to verify a real Discord installation.
 
